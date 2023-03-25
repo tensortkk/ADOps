@@ -1,4 +1,4 @@
-FROM 4pdosc/openmldb:0.7.3
+FROM 4pdosc/openmldb:0.7.2
 
 ADD ./requirements.txt /work/
 ENV PYTHONWARNINGS="ignore:Unverified HTTPS request"
