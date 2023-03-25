@@ -1,0 +1,39 @@
+services:
+  mysql:
+    image: mysql:5.7
+    container_name: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=adops2023
+      - MYSQL_DATABASE=adops
+      - TZ=Asia/Shanghai
+    ports:
+      - 3306:3306
+
+  kylin:
+    image: apachekylin/apache-kylin-standalone:4.0.0
+    container_name: kylin
+    ports:
+      - 7070:7070
+      - 8088:8088
+      - 50070:50070
+
+  opmldb:
+    image: openmldb:adops
+    container_name: opmldb
+    ports:
+      - 7527:7527
+      - 8888:8888
+    environment:
+      - HOST=${HOST}
+    volumes:
+      - ./adops/:/work/adops/
+    command:
+      - sh
+      - -c
+      - |
+          /work/init.sh &
+          jupyter-lab --ip=0.0.0.0 --allow-root &
+          gunicorn -b 0.0.0.0:5000 --name server server.wsgi:app
+    depends_on:
+      - kylin
+      - mysql

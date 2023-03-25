@@ -1,0 +1,6 @@
+**/.ipynb_checkpoints
+**/__pycache__
+**/nohup.out
+**/server.log
+**/logs
+**/kafka_2.13-3.4.0
