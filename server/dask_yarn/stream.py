@@ -16,14 +16,13 @@ import pandas as pd
 with open("/work/adops/kafka/client_id") as f:
     client_id = f.read()
 
-adops_mysql_url = f"mysql+pymysql://root:adops2023@{os.environ.get('HOST')}:3306/adops?charset=utf8"
+adops_mysql_url = f"mysql+pymysql://root:adops2023@{os.environ.get('HOST')}:3337/adops?charset=utf8"
 engine = create_engine(adops_mysql_url, connect_args={'ssl': {'ssl-mode': 'disable'}})
 create_sql = f"""
     CREATE TABLE IF NOT EXISTS `stream`(
         `alias` VARCHAR(64) NOT NULL,
         `extra_info` JSON NOT NULL,
-        `ts` datetime NOT NULL,
-    PRIMARY KEY ( `alias` )
+        `ts` datetime NOT NULL
     )ENGINE=InnoDB DEFAULT CHARSET=utf8;"""
 with engine.begin() as conn:
     conn.execute(create_sql)
@@ -63,20 +62,37 @@ class DaskYarnDeploy(object):
             group_id=f"adops_{int(time.time())}",
             bootstrap_servers=["localhost:9092"],
             client_id=client_id,
-            value_deserializer=json.loads
+            auto_offset_reset="earliest",
+            enable_auto_commit=True,
+            value_deserializer=lambda x: json.loads(x.decode('utf-8')),
         )
 
     @staticmethod
     def ts_format(ts):
         return datetime.datetime.strptime(ts, "%Y-%m-%d %H:%M:%S")
+    
+    @staticmethod
+    def min_format(ts):
+        return datetime.datetime.strptime(ts, "%Y-%m-%d %H:%M")
 
     @staticmethod
     def time_diff(st_ts, ed_ts):
-        return (DaskYarnDeploy.ts_format(ed_ts) - DaskYarnDeploy.ts_format(st_ts)
+        return (DaskYarnDeploy.min_format(ed_ts) - DaskYarnDeploy.min_format(st_ts)
         ).total_seconds()
 
     @staticmethod
     def compare(num0, num1, op):
+        dict = {
+            "greater": ">",
+            "greater_equal": ">=",
+            "less": "<",
+            "less_equal": "<=",
+        }
+        if op in dict:
+            op = dict[op]
+        if op != "in" and op != "not in":
+            if isinstance(num1, str):
+                num1 = int(num1)
         if num0 >= num1 and op == ">=":
             return True
         if num0 > num1 and op == ">":
@@ -85,6 +101,10 @@ class DaskYarnDeploy(object):
             return True
         if num0 < num1 and op == "<":
             return True
+        if num0 == num1 and op == "=":
+            return True
+        if op != "in" and op != "not in":
+            return False
         if num0 in list(eval(num1)) and op == "in":
             return True
         if num0 not in list(eval(num1)) and op == "not in":
@@ -92,7 +112,8 @@ class DaskYarnDeploy(object):
         return False
 
     def cumulative_sum(self, data_j):
-        delta, role_id, ts = [data_j[i] for i in ["montior", "role_id", "ts"]]
+        print(data_j)
+        delta, role_id, ts = [data_j[i] for i in [self.setting["montior"].lower(), "role_id", "minute"]]
         if role_id not in self.res_d:
             self.res_d[role_id] = {
                 "total_delta": 0,
@@ -108,28 +129,40 @@ class DaskYarnDeploy(object):
         if ts_diff <= self.setting["ts_thd"] * 60 and DaskYarnDeploy.compare(
             total_delta, self.setting["value_thd"], self.setting["op"]):
             engine.execute(f"""
-                insert into {__file__.split('.')[0]} (alias, extra_info, ts) VALUES
-                ({self.setting['alias']}, {data_j}, {ts})""")
+                insert into stream (alias, extra_info, ts) VALUES 
+                ('{self.setting['alias']}', '{json.dumps(data_j)}', '{ts}')""")
 
             # total_delta update
             earliest_delta = self.res_d[role_id]["delta"].get()
             self.res_d[role_id]["total_delta"] -= earliest_delta
+        if ts_diff > self.setting["ts_thd"] * 60:
+            earliest_delta = self.res_d[role_id]["delta"].get()
+            ts = self.res_d[role_id]["ts"].get()
+            self.res_d[role_id]["total_delta"] -= earliest_delta
+            print(self.res_d[role_id]["total_delta"])
     
     def process(self, cr):
         filter_l = self.setting["filter"]
         for _data in cr:
+            tmp = self.lower_case(_data)
             filter_judge = [
-                DaskYarnDeploy.compare(_data.get(item[0]), item[-1], _data.get(item[1]))
+                DaskYarnDeploy.compare(tmp.get(item[0]), item[-1], item[1])
                 for item in filter_l]
             if sum(filter_judge) != len(filter_judge):
                 continue
-            self.cumulative_sum(_data)
+            self.cumulative_sum(tmp)
+
+    def lower_case(self, info):
+        info_l = dict()
+        for key, item in info.items():
+            info_l[key.lower()] = item
+        return info_l
 
     def deploy(self):
         while True:
             try:
                 for message in self.consumer:
-                    self.consume_ts = self.process(message.value)
+                    self.consume_ts = self.process([message.value])
             except Exception as e:
                 print(e)
                 self.consume_ts = (DaskYarnDeploy.ts_format(self.consume_ts) - datetime.timedelta(
@@ -149,6 +182,7 @@ class DaskYarnDeploy(object):
 def main(alias):
     setting_sql = f"select setting from ad_setting where alias = '{alias}' limit 1"
     setting = eval(mysql_data(setting_sql).values.tolist()[0][0])
+    setting["alias"] = alias
 
     dyd = DaskYarnDeploy(setting)
     dyd.deploy()

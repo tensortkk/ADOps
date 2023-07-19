@@ -1,5 +1,5 @@
 # tar and start
-# tar -xzf kafka_2.13-3.4.0.tgz
+tar -xzf kafka_2.13-3.4.0.tgz
 cd kafka_2.13-3.4.0
 
 export KAFKA_CLUSTER_ID="$(bin/kafka-storage.sh random-uuid)"
@@ -11,6 +11,18 @@ nohup bin/kafka-server-start.sh config/kraft/server.properties &
 
 # create topic
 bin/kafka-topics.sh --create --topic adops --bootstrap-server localhost:9092
+bin/kafka-topics.sh --create --topic xgadops --bootstrap-server localhost:9092
+
+cd /work/adops/kafka
+# tar zxf kafka-connect-jdbc.tgz
+# tar zxf kafka_demo_files.tgz
+
+mkdir -p /usr/local/share/java
+cp -r /work/adops/kafka/kafka-connect-jdbc /usr/local/share/java/
+
+cd kafka_2.13-3.4.0
+./bin/connect-standalone.sh -daemon ../kafka_demo_files/connect-standalone.properties ../kafka_demo_files/openmldb-sink.properties
+# ./bin/kafka-console-producer.sh --topic xgadops --bootstrap-server localhost:9092 < ../kafka_demo_files/message
 
 # # write msg
 # bin/kafka-console-producer.sh --topic adops --bootstrap-server localhost:9092

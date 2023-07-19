@@ -7,8 +7,8 @@ from werkzeug.wrappers import Response
 from .query import Query
 from .base import org_scoped_rule
 from .cube import CubeDescriptor, CubeCol, CubeList
-from .ad_setting import SettingSave, KylinRecomd, SettingProject, SettingID
-from .dask_yarn import DaskYarn
+from .ad_setting import SettingSave, KylinRecomd, SettingProject, SettingID, ModelSave, ModelID
+from .dask_yarn import DaskYarn, ModelDeploy, MonitorYarn
 
 from server.util import json_dumps
 
@@ -74,7 +74,27 @@ api.add_org_resource(
     SettingID, "/kylin/api/ad_setting/<mode>/<id>", endpoint="ad_setting_id"
 )
 
+# model setting
+api.add_org_resource(
+    ModelSave, "/kylin/api/model_setting", endpoint="model_setting"
+)
+
+# model setting get by id
+api.add_org_resource(
+    ModelID, "/kylin/api/model_setting/<id>", endpoint="model_setting_id"
+)
+
 # online/offline dask application
 api.add_org_resource(
     DaskYarn, "/kylin/api/dask/<id>", endpoint="dask_yarn"
+)
+
+# model deployment
+api.add_org_resource(
+    ModelDeploy, "/kylin/api/model/<id>", endpoint="model_deploy"
+)
+
+# Intelligent Detection
+api.add_org_resource(
+    MonitorYarn, "/kylin/api/monitor/<id>", endpoint="monitor_yarn"
 )

@@ -4,7 +4,7 @@ SQLAlchemy-Searchable
 Jinja2
 joblib
 jsonschema
-numpy
+numpy==1.22
 pandas
 PyMySQL
 scipy
@@ -14,9 +14,10 @@ kafka-python
 dask
 distributed
 shap
-keras
+matplotlib
 openmldb
 redis
+tensorflow==2.8.4
 jupyterlab
 pyarrow
 fastparquet

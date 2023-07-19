@@ -8,4 +8,4 @@ MULTI_ORG = parse_boolean(os.environ.get("KYLIN_MULTI_ORG", "false"))
 
 kylin_server_address = f"http://{os.environ.get('HOST')}:7070"
 kylin_authorization = "Basic QURNSU46S1lMSU4="
-adops_mysql_url = f"mysql+pymysql://root:adops2023@{os.environ.get('HOST')}:3306/adops?charset=utf8"
+adops_mysql_url = f"mysql+pymysql://root:adops2023@{os.environ.get('HOST')}:3337/adops?charset=utf8"

@@ -1,13 +1,14 @@
 from flask import request, abort
 import datetime
 import copy
+import time
 
 from .base import BaseHandle, query_decorator
-from server.util.json_schema import ad_setting, setting_project
+from server.util.json_schema import ad_setting, setting_project, model_setting
 from server.util.rest_api import KylinOpenApi
 from server.util.utils import Validate
 
-from server.models import ADSetting, session_scope, DaskApplication
+from server.models import ADSetting, session_scope, DaskApplication, ModelSetting
 
 
 class KylinRecomd(BaseHandle, KylinOpenApi, Validate):
@@ -84,7 +85,7 @@ class SettingSave(BaseHandle, KylinOpenApi, Validate):
             params[col] if isinstance(params[col], str) else str(params[col])
             for col in ["logid", "montior", "value_thd"]])
         if ADSetting.alias_exist(alias):
-            alias += "_" + datetime.date.today().strftime("%Y-%m-%d %H:%M:%S")
+            alias += "_" + datetime.date.today().strftime("%Y-%m-%d_%H:%M:%S")
 
         ad_s = ADSetting(
             projectName=params["projectName"],
@@ -150,6 +151,82 @@ class SettingID(BaseHandle, KylinOpenApi, Validate):
     def delete(self, mode, id):
         """stop and delete yarn application if exist and delete setting"""
         ad_s = ADSetting.get_by_id(id)
+        params = ad_s.to_dict()
+        if DaskApplication.alias_exist(params["alias"]):
+            da = DaskApplication.get_by_alias(params["alias"])
+            # delete
+            with session_scope() as session:
+                session.delete(da)
+        with session_scope() as session:
+            session.delete(ad_s)
+
+class ModelSave(BaseHandle, KylinOpenApi, Validate):
+    def __init__(self):
+        super(ModelSave, self).__init__(request)
+        KylinOpenApi.__init__(self)
+
+    def post(self):
+        params = self.json()
+        self.schema_validate(params, model_setting)
+
+        alias = "_".join([params["database"], params["deployment"]])
+        if ModelSetting.alias_exist(alias):
+            alias += "_" + datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+        
+        ad_s = ModelSetting(
+            alias=alias,
+            endpoint=params["endpoint"],
+            model_path=params["model_path"],
+            model_type=params["model_type"],
+            database=params["database"],
+            deployment=params["deployment"],
+            schema=params["schema"],
+            port=params["port"],
+        )
+        with session_scope() as session:
+            session.add(ad_s)
+            session.commit()
+        return ad_s.to_dict()
+
+class ModelID(BaseHandle, KylinOpenApi, Validate):
+    def __init__(self):
+        super(ModelID, self).__init__(request)
+        KylinOpenApi.__init__(self)
+
+    def get(self, id):
+        ad_s = ModelSetting.get_by_id(id)
+        return ad_s.to_dict()
+
+    def post(self, id):
+        """stop and delete yarn application if exist and update setting"""
+        params = self.json()
+        self.schema_validate(params, model_setting)
+
+        if DaskApplication.id_exist(id):
+            da = DaskApplication.get_by_id(id).to_dict()
+            # delete
+            with session_scope() as session:
+                session.delete(da)
+
+        ad_s = ModelSetting.get_by_id(id)
+        ad_s.endpoint = params["endpoint"]
+        ad_s.model_path = params["model_path"]
+        ad_s.model_type = params["model_type"]
+        ad_s.database = params["database"]
+        ad_s.deployment = params["deployment"]
+        ad_s.schema = params["schema"]
+        ad_s.port = params["port"]
+        ad_s.update_time = datetime.datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S")
+        ad_s.online_time = None
+        with session_scope() as session:
+            session.add(ad_s)
+            session.commit()
+        return ad_s.to_dict()
+
+    def delete(self, id):
+        """stop and delete yarn application if exist and delete setting"""
+        ad_s = ModelSetting.get_by_id(id)
         params = ad_s.to_dict()
         if DaskApplication.alias_exist(params["alias"]):
             da = DaskApplication.get_by_alias(params["alias"])
