@@ -16,8 +16,8 @@
 - docker ps | grep kylin or docker-compose ps
 
 **build adops image**
-./adops/build.sh
-docker run -it -p 7527:7527 -p 8888:8888 -e HOST=${HOST} -v ./adops:/work/adops/ openmldb:adops bash -c "/work/init.sh & jupyter-lab --ip=0.0.0.0 --allow-root & gunicorn -b 0.0.0.0:5000 --name server server.wsgi:app"
+- ./adops/build.sh
+- docker run -it -p 7527:7527 -p 8888:8888 -e HOST=${HOST} -v ./adops:/work/adops/ openmldb:adops bash -c "/work/init.sh & jupyter-lab --ip=0.0.0.0 --allow-root & gunicorn -b 0.0.0.0:5000 --name server server.wsgi:app"
 
 ### MySQL
 - mysql -uroot -padops2023 --ssl-mode=DISABLED -P3306 -h127.0.0.1
@@ -34,5 +34,3 @@ docker run -it -p 7527:7527 -p 8888:8888 -e HOST=${HOST} -v ./adops:/work/adops/
 
 ## Stop Services
 - docker-compose -f docker-compose.yml down
-
-## kafka
