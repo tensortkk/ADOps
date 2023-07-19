@@ -6,3 +6,5 @@ RUN pip install --upgrade pip && \
     pip install -r /work/requirements.txt -i http://pypi.douban.com/simple/ --trusted-host=pypi.douban.com/simple
 
 WORKDIR /work/adops
+
+ADD . /work/adops/

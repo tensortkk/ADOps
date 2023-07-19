@@ -121,3 +121,18 @@ setting_project = {
     "required": ["projectName"],
     "additionalProperties": False
 }
+
+model_setting = {
+    "type": "object",
+    "properties": {
+        "endpoint":  {"type": "string"},
+        "model_path": {"type": "string"},
+        "model_type": {"enum": ["keras", "xgboost"]},
+        "database": {"type": "string"},
+        "deployment": {"type": "string"},
+        "port": {"type": "string"},
+        "schema": {"type": "array"},
+    },
+    "required": ["endpoint", "model_path", "model_type", "database", "deployment", "schema"],
+    "additionalProperties": False
+}
